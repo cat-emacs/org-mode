@@ -939,12 +939,7 @@ holding export options."
       (unless (equal "lualatex" (plist-get info :latex-compiler))
         (error "ox-beamer: `ltx-talk' needs LuaLaTeX!")))
     (concat
-     ;; Timestamp.
-     (and (plist-get info :time-stamp-file)
-	  (format-time-string "%% Created %Y-%m-%d %a %H:%M\n"))
-     ;; LaTeX compiler
-     (org-latex--insert-compiler info)
-     ;; Document class, theme and packages.
+     ;; Timestamp, compiler, document class, theme and packages.
      (org-beamer--insert-theme
       (org-latex-make-preamble info)
       (org-beamer--theme-header info))

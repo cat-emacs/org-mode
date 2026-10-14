@@ -3,6 +3,7 @@
 (require 'ert)
 (require 'org-latex-preview)
 (require 'ox-html)
+(require 'ox-beamer)
 
 (ert-deftest test-org-latex-preview/unsafe-buffer ()
   "Preview dispatch must respect the upstream unsafe-content guard."
@@ -203,6 +204,20 @@
             (org-edit-src-exit))
         (when (bound-and-true-p org-src-mode) (org-edit-src-abort))
         (org-latex-preview-mode -1)))))
+
+(ert-deftest test-org-latex-preview/beamer-preamble ()
+  "The shared preamble inserts the compiler and timestamp only once."
+  (let ((org-mode-hook nil)
+        (org-latex-precompile nil))
+    (with-temp-buffer
+      (org-mode)
+      (insert "#+TITLE: Preview\n#+LATEX_CLASS: beamer\n* Slide\nHello\n")
+      (let ((text (org-export-as 'beamer)))
+        (with-temp-buffer
+          (insert text)
+          (goto-char (point-min))
+          (should (search-forward "% Intended LaTeX compiler:" nil t))
+          (should-not (search-forward "% Intended LaTeX compiler:" nil t)))))))
 
 (provide 'test-org-latex-preview)
 ;;; test-org-latex-preview.el ends here
