@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  emacs:
+    uses: cat-emacs/.github/.github/workflows/emacs-package.yml@v1
+    with:
+      install-command: |
+        sudo apt-get update
+        sudo apt-get install -y texlive-latex-extra texlive-xetex dvisvgm
+        git submodule update --init --depth=1
+      check-command: |
+        home=$(mktemp -d /tmp/org-home.XXXXXX)
+        tmp=$(mktemp -d /tmp/org-test.XXXXXX)
+        trap 'rm -rf "$home" "$tmp"' EXIT
+        HOME="$home" TMPDIR="$tmp" make test BTEST_OB_LANGUAGES=

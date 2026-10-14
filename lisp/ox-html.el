@@ -1231,7 +1231,7 @@ This supports one extra property,
   ;; would require a different variable not tied to LaTeX previews.
   ;; So, we do not document this feature, so that we do not need
   ;; to preserve it later for backwards compatibility.
-  
+
   ;; :inline     a list of image format symbols that should not be saved according
   ;; to :image-dir, but instead inlined in the generated HTML.
   ;; Valid format symbols are:

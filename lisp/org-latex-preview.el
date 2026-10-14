@@ -1485,7 +1485,8 @@ Prefix arguments are handled as follows:
 MODE can also be a org-element LaTeX environment or fragment, which
 will be treated as \"point\"."
   (interactive "P" org-mode)
-  (when (display-graphic-p)
+  (when (and (display-graphic-p)
+             (or (not untrusted-content) org--latex-preview-when-risky))
     (unless (and mode (symbolp mode))
       (setq mode
             (pcase (car-safe mode)
@@ -1786,6 +1787,10 @@ NUMBER is the equation number that should be used, if applicable."
          (list processing-type
                preamble
                string
+               ;; Do not reuse TikZ previews generated before color inheritance.
+               (and (eq processing-type 'dvisvgm)
+                    (string-match-p "\\\\begin{tikzpicture}" string)
+                    'tikz-current-color-v1)
                (if (equal imagetype "svg")
                    'svg
                  (list (plist-get
@@ -3012,7 +3017,12 @@ EXTENDED-INFO, and displayed in the buffer."
     (when fragments-to-show
       (setq fragments-to-show (nreverse fragments-to-show))
       (if (>= org-latex-preview--dvisvgm3-minor-version 1)
-          (mapc #'org-latex-preview--await-fragment-existance fragments-to-show)
+          (mapc (lambda (fragment)
+                  (if (string-match-p "\\\\begin{tikzpicture}"
+                                      (plist-get fragment :string))
+                      (org-latex-preview--svg-make-fg-currentColor fragment)
+                    (org-latex-preview--await-fragment-existance fragment)))
+                fragments-to-show)
         (mapc #'org-latex-preview--svg-make-fg-currentColor fragments-to-show))
       (org-latex-preview--place-images extended-info fragments-to-show))))
 
@@ -3029,9 +3039,8 @@ This is needed to accomidate for asyncronicity in file writing."
 
 (defun org-latex-preview--svg-make-fg-currentColor (svg-fragment)
   "Replace the foreground color in SVG-FRAGMENT's file with \"currentColor\".
-The foreground color is guessed to be the first specified <g>
-fill color, which appears to be a reliable heuristic from a few
-tests with the output of dvisvgm."
+Only the dedicated `org-latex-preview--svg-fg-standin' color is
+replaced, preserving colors explicitly selected by the fragment."
   (let ((write-region-inhibit-fsync t)
         ;; dvisvgm produces UTF-8 encoded files, so we might as well
         ;; avoid calling `find-auto-coding'.
@@ -3407,8 +3416,13 @@ information for this run."
                (bg (org-latex-preview--format-color bg))))
          (num (or (plist-get appearance-options :number)
                   (and (not (eq org-latex-preview-numbered 'preview))
-                       1))))
-    (concat (and (not (plist-get appearance-options :continue-color))
+                       1)))
+         (tikz-current-color
+          (and (eq processing-type 'dvisvgm)
+               (string-match-p "\\\\begin{tikzpicture}" value)
+               "\\tikzset{every picture/.append style={color=.}}%\n")))
+    (concat (and (or tikz-current-color
+                     (not (plist-get appearance-options :continue-color)))
                  (if (eq processing-type 'dvipng)
                      (concat (and fg (format "\\special{color rgb %s}"
                                              (subst-char-in-string
@@ -3425,6 +3439,7 @@ information for this run."
                          "\\special{dvisvgm:currentcolor on}"))))
             (and num (format "\\setcounter{equation}{%d}" (1- num)))
             "%\n"
+            tikz-current-color
             value)))
 
 (defun org-latex-preview--get-display-dpi ()
